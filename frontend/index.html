@@ -1,0 +1,135 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Gujarat Police Sentinel · Emergency AI Command Centre</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">Gujarat Police Innovation Hackathon 2026 · Sentinel Grid</p>
+      <h1>Unified Emergency AI & Vehicle Intelligence</h1>
+    </div>
+    <div class="connection" aria-live="polite">
+      <span id="status-dot" class="status-dot status-pending"></span>
+      <span id="api-status">Connecting to API…</span>
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <!-- Left Column: Live Alerts Feed -->
+    <section class="panel alerts-panel" aria-labelledby="alerts-heading">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Perception & ANPR Incident Stream</p>
+          <h2 id="alerts-heading">Live Incident & Watchlist Alerts</h2>
+        </div>
+        <div class="refresh-meta">
+          <button id="refresh-alerts" type="button" class="secondary-button">Refresh</button>
+          <span id="last-refresh">Not refreshed yet</span>
+        </div>
+      </div>
+      <div id="alert-feed" class="alert-feed" aria-live="polite">
+        <p class="empty-state">Loading real incidents…</p>
+      </div>
+    </section>
+
+    <!-- Right Column: Sidebar (Cameras & Video Upload) -->
+    <aside class="sidebar">
+      <section class="panel" aria-labelledby="batch-analysis-heading">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Forensic Video Ingestion</p>
+            <h2 id="batch-analysis-heading">Analyze Video Stream</h2>
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 15px; padding: 12px; background: linear-gradient(135deg, #1e3a8a 0%, #312e81 100%); border-radius: 8px;">
+          <h3 style="margin: 0 0 6px 0; color: #fff; font-size: 14px;">🎥 Sentinel Live Analyzer</h3>
+          <p style="margin: 0 0 8px 0; color: #cbd5e1; font-size: 12px;">Watch stream analyzed in real-time with pose, fall & zone overlays.</p>
+          <a href="/live_analysis.html" style="display: inline-block; padding: 6px 14px; background: #38bdf8; color: #0f172a; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 12px;">Open Live View →</a>
+        </div>
+        
+        <form id="upload-form">
+          <label for="video-file">Select video file (Background mode)</label>
+          <input id="video-file" name="video" type="file" 
+                 accept=".mp4,.avi,.mov,.mkv,.webm" required>
+          
+          <button type="submit">Analyze Video</button>
+          <p id="upload-form-message" class="form-message" aria-live="polite"></p>
+        </form>
+        
+        <div id="batch-status" class="batch-status" aria-live="polite"></div>
+        <div id="batch-results" class="batch-results"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="cameras-heading">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Sentinel CCTV Grid</p>
+            <h2 id="cameras-heading">Active Cameras</h2>
+          </div>
+          <a href="/zone_editor.html" class="secondary-button"
+             style="text-decoration: none;">Draw zones →</a>
+        </div>
+        <div id="camera-list" class="camera-list" aria-live="polite">
+          <p class="empty-state">Loading camera sources…</p>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="add-camera-heading">
+        <p class="eyebrow">Register Stream</p>
+        <h2 id="add-camera-heading">Add Camera / Stream</h2>
+        <form id="camera-form">
+          <label for="camera-name">Camera Name</label>
+          <input id="camera-name" name="name" type="text" maxlength="100"
+                 placeholder="Ring Road Junction" required>
+
+          <label for="camera-source">Stream URL / RTSP / Local File</label>
+          <input id="camera-source" name="source" type="text" maxlength="2048"
+                 placeholder="rtsp://103.250.160.189:8554/stream/cam04" required>
+          <button type="submit">Add Camera</button>
+          <p id="camera-form-message" class="form-message" aria-live="polite"></p>
+        </form>
+      </section>
+    </aside>
+
+    <!-- Full Width: Vehicle Journey Tracker & Leaflet Map -->
+    <section class="panel journey-panel" aria-labelledby="journey-heading">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Gujarat Police Intelligence · Cross-Camera Journey</p>
+          <h2 id="journey-heading">Vehicle Journey Reconstruction & Track Feasibility</h2>
+        </div>
+        <div id="journey-status-badge"></div>
+      </div>
+
+      <form id="journey-search-form" style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 16px;">
+        <input id="journey-plate-input" type="text" placeholder="Enter Registration Number (e.g. GJ01AB1234, DL8CAF5091, TESTCASEA)" style="flex: 1; text-transform: uppercase; font-weight: bold; letter-spacing: 0.05em;" required>
+        <button type="submit" style="width: auto; padding: 0 24px; white-space: nowrap; background: #2563eb;">Track Vehicle Journey</button>
+      </form>
+
+      <div id="journey-summary" class="journey-summary" style="display:none; margin-bottom: 14px; padding: 12px 16px; background: #0f172a; border: 1px solid #1e293b; border-radius: 8px;"></div>
+
+      <div id="journey-map" style="height: 380px; width: 100%; border-radius: 8px; margin-bottom: 16px; background: #090e16; border: 1px solid var(--panel-border);"></div>
+
+      <div class="panel-heading" style="margin-top: 14px; margin-bottom: 10px;">
+        <h3 style="font-size: 15px; margin: 0; color: #94a3b8;">Chronological Sighting Timeline & Corridor Speed Validation</h3>
+      </div>
+      <div id="journey-timeline" class="journey-timeline" style="max-height: 280px; overflow-y: auto;">
+        <p class="empty-state">Enter a license plate above to view its cross-camera trajectory, speed checks, and map route.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Gujarat Police Innovation Hackathon 2026 · AI Emergency Response & Vehicle Intelligence Grid · Real SQLite Database
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>
