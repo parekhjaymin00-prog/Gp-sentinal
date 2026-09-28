@@ -1,135 +1,528 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <title>Gujarat Police Sentinel · Emergency AI Command Centre</title>
+  <title>Gujarat Police Sentinel — Emergency AI Command Centre</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
   <link rel="stylesheet" href="style.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 </head>
 <body>
+  <!-- SECTION A: APP HEADER & SYSTEM STATUS BAR -->
   <header class="app-header">
-    <div>
-      <p class="eyebrow">Gujarat Police Innovation Hackathon 2026 · Sentinel Grid</p>
-      <h1>Unified Emergency AI & Vehicle Intelligence</h1>
+    <div class="header-brand">
+      <div class="brand-badge">
+        <span class="badge-shield">🛡️</span>
+        <div>
+          <p class="eyebrow">GUJARAT POLICE INNOVATION HACKATHON 2026</p>
+          <h1 class="brand-title">Sentinel Emergency AI Command Centre</h1>
+          <p class="brand-subtitle">Unified Multi-Agency Dispatch, Real-Time Perception &amp; ANPR Vehicle Intelligence Grid</p>
+        </div>
+      </div>
     </div>
-    <div class="connection" aria-live="polite">
-      <span id="status-dot" class="status-dot status-pending"></span>
-      <span id="api-status">Connecting to API…</span>
+
+    <div class="system-status-grid" aria-live="polite">
+      <div class="status-pill" id="status-pill-api" title="FastAPI backend server status">
+        <span class="status-dot status-online" id="dot-api"></span>
+        <div class="pill-content">
+          <span class="pill-label">Backend API</span>
+          <span class="pill-val" id="val-api">ONLINE (Port 8000)</span>
+        </div>
+      </div>
+
+      <div class="status-pill" id="status-pill-db" title="SQLite database connection &amp; active records">
+        <span class="status-dot status-online" id="dot-db"></span>
+        <div class="pill-content">
+          <span class="pill-label">Database</span>
+          <span class="pill-val" id="val-db">CONNECTED (SQLite)</span>
+        </div>
+      </div>
+
+      <div class="status-pill" id="status-pill-sentinel" title="Sentinel CCTV stream ingestion grid">
+        <span class="status-dot status-online" id="dot-sentinel"></span>
+        <div class="pill-content">
+          <span class="pill-label">Sentinel Stream</span>
+          <span class="pill-val" id="val-sentinel">ONLINE (9 Feeds)</span>
+        </div>
+      </div>
+
+      <div class="status-pill" id="status-pill-ai" title="AI perception &amp; temporal fusion engines">
+        <span class="status-dot status-online" id="dot-ai"></span>
+        <div class="pill-content">
+          <span class="pill-label">Perception AI</span>
+          <span class="pill-val" id="val-ai">ACTIVE (YOLO+EasyOCR)</span>
+        </div>
+      </div>
+
+      <div class="status-sync">
+        <span class="sync-time" id="last-sync-time">Syncing...</span>
+        <button type="button" id="btn-quick-refresh" class="btn-sync" title="Force refresh all metrics">🔄 Refresh</button>
+      </div>
     </div>
   </header>
 
-  <main class="dashboard">
-    <!-- Left Column: Live Alerts Feed -->
-    <section class="panel alerts-panel" aria-labelledby="alerts-heading">
+  <!-- SECTION B: OPERATIONAL METRICS KPI BANNER -->
+  <section class="kpi-strip" aria-label="Operational Metrics Overview">
+    <div class="kpi-card kpi-incidents" id="kpi-incidents-card">
+      <div class="kpi-icon-wrap">🚨</div>
+      <div class="kpi-content">
+        <span class="kpi-label">Active Incidents</span>
+        <div class="kpi-val-row">
+          <span class="kpi-val" id="kpi-incidents-val">--</span>
+          <span class="kpi-pill kpi-pill-critical" id="kpi-critical-val">-- Critical</span>
+        </div>
+        <span class="kpi-sub">Real-time detector feed</span>
+      </div>
+    </div>
+
+    <div class="kpi-card kpi-cameras" id="kpi-cameras-card">
+      <div class="kpi-icon-wrap">📹</div>
+      <div class="kpi-content">
+        <span class="kpi-label">Sentinel Cameras</span>
+        <div class="kpi-val-row">
+          <span class="kpi-val" id="kpi-cameras-val">--</span>
+          <span class="kpi-pill kpi-pill-success">100% Ingesting</span>
+        </div>
+        <span class="kpi-sub">Gandhinagar / Ahmedabad Grid</span>
+      </div>
+    </div>
+
+    <div class="kpi-card kpi-vehicles" id="kpi-vehicles-card">
+      <div class="kpi-icon-wrap">🚗</div>
+      <div class="kpi-content">
+        <span class="kpi-label">Tracked Vehicles</span>
+        <div class="kpi-val-row">
+          <span class="kpi-val" id="kpi-vehicles-val">--</span>
+          <span class="kpi-pill kpi-pill-info" id="kpi-sightings-val">-- Sightings</span>
+        </div>
+        <span class="kpi-sub">ANPR &amp; Temporal Fusion</span>
+      </div>
+    </div>
+
+    <div class="kpi-card kpi-watchlist" id="kpi-watchlist-card">
+      <div class="kpi-icon-wrap">🎯</div>
+      <div class="kpi-content">
+        <span class="kpi-label">Watchlist Hits</span>
+        <div class="kpi-val-row">
+          <span class="kpi-val" id="kpi-watchlist-val">--</span>
+          <span class="kpi-pill kpi-pill-danger">DEFCON 2</span>
+        </div>
+        <span class="kpi-sub" id="kpi-watchlist-plate">Target: GJ01RQ6420</span>
+      </div>
+    </div>
+
+    <div class="kpi-card kpi-units" id="kpi-units-card">
+      <div class="kpi-icon-wrap">🚓</div>
+      <div class="kpi-content">
+        <span class="kpi-label">Response Units</span>
+        <div class="kpi-val-row">
+          <span class="kpi-val" id="kpi-units-val">--</span>
+          <span class="kpi-pill kpi-pill-police">Multi-Agency</span>
+        </div>
+        <span class="kpi-sub">Police, Traffic, EMS, Fire</span>
+      </div>
+    </div>
+
+    <div class="kpi-card kpi-system" id="kpi-system-card">
+      <div class="kpi-icon-wrap">⚡</div>
+      <div class="kpi-content">
+        <span class="kpi-label">System Posture</span>
+        <div class="kpi-val-row">
+          <span class="kpi-val text-success" id="kpi-system-val">ACTIVE</span>
+        </div>
+        <span class="kpi-sub">All Subsystems Nominal</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAIN OPERATIONAL GRID -->
+  <main class="dashboard-grid">
+
+    <!-- ROW 1: GIS TACTICAL COMMAND MAP & ACTIVE INCIDENT OVERVIEW (SECTION C) -->
+    <section class="panel map-command-panel" aria-labelledby="gis-heading">
       <div class="panel-heading">
         <div>
-          <p class="eyebrow">Perception & ANPR Incident Stream</p>
-          <h2 id="alerts-heading">Live Incident & Watchlist Alerts</h2>
+          <p class="eyebrow">GEO-INTELLIGENCE &amp; SPATIAL CORRELATION</p>
+          <h2 id="gis-heading">Sentinel GIS Tactical Command Map</h2>
         </div>
-        <div class="refresh-meta">
-          <button id="refresh-alerts" type="button" class="secondary-button">Refresh</button>
-          <span id="last-refresh">Not refreshed yet</span>
+        <div class="map-toolbar">
+          <div class="layer-toggles" id="map-layer-toggles">
+            <label class="toggle-chip"><input type="checkbox" id="layer-chk-cameras" checked> 📹 Cameras (9)</label>
+            <label class="toggle-chip"><input type="checkbox" id="layer-chk-incidents" checked> 🚨 Incidents</label>
+            <label class="toggle-chip"><input type="checkbox" id="layer-chk-vehicles" checked> 🚗 Vehicles</label>
+            <label class="toggle-chip"><input type="checkbox" id="layer-chk-units" checked> 🚓 Units</label>
+            <label class="toggle-chip"><input type="checkbox" id="layer-chk-facilities" checked> 🏥 Facilities</label>
+          </div>
+          <button type="button" id="btn-reset-map-view" class="secondary-button btn-sm">Reset Grid View</button>
         </div>
       </div>
-      <div id="alert-feed" class="alert-feed" aria-live="polite">
-        <p class="empty-state">Loading real incidents…</p>
+
+      <div class="map-container-wrap">
+        <div id="command-map" class="command-map"></div>
+        <div class="map-legend-overlay">
+          <div class="legend-item"><span class="legend-dot dot-cam"></span> Camera</div>
+          <div class="legend-item"><span class="legend-dot dot-critical"></span> Critical Incident</div>
+          <div class="legend-item"><span class="legend-dot dot-high"></span> High / Warning</div>
+          <div class="legend-item"><span class="legend-dot dot-vehicle"></span> Tracked Plate</div>
+          <div class="legend-item"><span class="legend-dot dot-unit"></span> Emergency Unit</div>
+        </div>
+      </div>
+
+      <!-- Quick Incident Spotlight Bar under the map -->
+      <div class="map-spotlight-bar" id="map-spotlight-bar">
+        <div class="spotlight-left">
+          <span class="spotlight-tag">INCIDENT SPOTLIGHT:</span>
+          <span class="spotlight-title" id="spotlight-title">Loading latest critical incident...</span>
+        </div>
+        <div class="spotlight-right">
+          <span class="spotlight-meta" id="spotlight-meta">Temporal vehicle &amp; camera correlation ready</span>
+          <button type="button" id="spotlight-btn-drawer" class="btn-sm btn-primary">Open Focus Drawer ➔</button>
+        </div>
       </div>
     </section>
 
-    <!-- Right Column: Sidebar (Cameras & Video Upload) -->
-    <aside class="sidebar">
-      <section class="panel" aria-labelledby="batch-analysis-heading">
-        <div class="panel-heading">
-          <div>
-            <p class="eyebrow">Forensic Video Ingestion</p>
-            <h2 id="batch-analysis-heading">Analyze Video Stream</h2>
+    <!-- ROW 2: MULTI-AGENCY RESPONSE COMMAND CENTRE (SECTION D) -->
+    <section class="panel response-panel" aria-labelledby="response-heading">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow" style="color: #38bdf8;">UNIFIED EMERGENCY DISPATCH &amp; MULTI-AGENCY COORDINATION</p>
+          <h2 id="response-heading">Response Command Centre</h2>
+        </div>
+        <div class="response-status-indicator">
+          <span class="pulse-indicator"></span>
+          <span class="indicator-text">Active Multi-Agency Operational Grid</span>
+        </div>
+      </div>
+
+      <div class="response-cards-grid">
+        <!-- Card 1: POLICE TACTICAL DISPATCH (REAL DATA) -->
+        <article class="response-card card-police" id="response-card-police">
+          <div class="response-card-header">
+            <div class="response-card-title">
+              <span class="response-icon">🚓</span>
+              <strong>POLICE TACTICAL DISPATCH</strong>
+            </div>
+            <span class="response-badge badge-police" id="police-status-badge">LIVE TARGET</span>
           </div>
-        </div>
-        
-        <div style="margin-bottom: 15px; padding: 12px; background: linear-gradient(135deg, #1e3a8a 0%, #312e81 100%); border-radius: 8px;">
-          <h3 style="margin: 0 0 6px 0; color: #fff; font-size: 14px;">🎥 Sentinel Live Analyzer</h3>
-          <p style="margin: 0 0 8px 0; color: #cbd5e1; font-size: 12px;">Watch stream analyzed in real-time with pose, fall & zone overlays.</p>
-          <a href="/live_analysis.html" style="display: inline-block; padding: 6px 14px; background: #38bdf8; color: #0f172a; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 12px;">Open Live View →</a>
-        </div>
-        
-        <form id="upload-form">
-          <label for="video-file">Select video file (Background mode)</label>
-          <input id="video-file" name="video" type="file" 
-                 accept=".mp4,.avi,.mov,.mkv,.webm" required>
-          
-          <button type="submit">Analyze Video</button>
-          <p id="upload-form-message" class="form-message" aria-live="polite"></p>
-        </form>
-        
-        <div id="batch-status" class="batch-status" aria-live="polite"></div>
-        <div id="batch-results" class="batch-results"></div>
-      </section>
-
-      <section class="panel" aria-labelledby="cameras-heading">
-        <div class="panel-heading">
-          <div>
-            <p class="eyebrow">Sentinel CCTV Grid</p>
-            <h2 id="cameras-heading">Active Cameras</h2>
+          <div class="response-card-body">
+            <div class="target-plate-banner">
+              <span class="target-label">WATCHLIST SUSPECT:</span>
+              <span id="police-plate-val" class="target-plate-highlight">GJ01RQ6420</span>
+            </div>
+            <div class="response-meta-row">
+              <span class="meta-label">Last Sighted:</span>
+              <span id="police-camera-val" class="meta-val">CH Road Market Gate (cam04)</span>
+            </div>
+            <div class="response-meta-row">
+              <span class="meta-label">Detection Time:</span>
+              <span id="police-time-val" class="meta-val">--</span>
+            </div>
+            <div class="response-meta-row">
+              <span class="meta-label">Threat Bulletin:</span>
+              <span id="police-reason-val" class="meta-val threat-high">Terror watchlist entry</span>
+            </div>
+            <div class="response-meta-row">
+              <span class="meta-label">Assigned Unit:</span>
+              <span id="police-unit-val" class="meta-val">Gandhinagar PCR Van 04</span>
+            </div>
+            <div class="response-sop-box">
+              <strong>POLICE SOP DISPATCH DIRECTIVE:</strong>
+              <p id="police-sop-text">Priority tactical interception of suspect vehicle GJ01RQ6420. Alert nearest highway patrol. Stage checkpoint closure along flight corridor.</p>
+            </div>
+            <div class="response-card-actions">
+              <button type="button" class="response-action-btn btn-police" id="btn-police-dispatch" onclick="window.acknowledgeDispatch('police')">
+                🚓 Dispatch PCR Unit
+              </button>
+              <button type="button" class="response-action-btn btn-secondary-action" onclick="window.trackPlate(document.getElementById('police-plate-val').textContent)">
+                🎯 Track Vehicle Journey
+              </button>
+            </div>
           </div>
-          <a href="/zone_editor.html" class="secondary-button"
-             style="text-decoration: none;">Draw zones →</a>
-        </div>
-        <div id="camera-list" class="camera-list" aria-live="polite">
-          <p class="empty-state">Loading camera sources…</p>
-        </div>
-      </section>
+        </article>
 
-      <section class="panel" aria-labelledby="add-camera-heading">
-        <p class="eyebrow">Register Stream</p>
-        <h2 id="add-camera-heading">Add Camera / Stream</h2>
-        <form id="camera-form">
-          <label for="camera-name">Camera Name</label>
-          <input id="camera-name" name="name" type="text" maxlength="100"
-                 placeholder="Ring Road Junction" required>
+        <!-- Card 2: TRAFFIC INTERCEPTION CORRIDOR (DERIVED FROM JOURNEY) -->
+        <article class="response-card card-interception" id="response-card-interception">
+          <div class="response-card-header">
+            <div class="response-card-title">
+              <span class="response-icon">🛑</span>
+              <strong>TRAFFIC INTERCEPTION</strong>
+            </div>
+            <span class="response-badge badge-interception" id="corridor-status-badge">CORRIDOR ACTIVE</span>
+          </div>
+          <div class="response-card-body">
+            <div class="target-plate-banner banner-green">
+              <span class="target-label" style="color: #34d399;">RECOMMENDED CHECKPOINT:</span>
+              <span id="interception-checkpoint-val" class="target-plate-highlight" style="color: #34d399;">Highway Toll Plaza (cam22)</span>
+            </div>
+            <div class="response-meta-row">
+              <span class="meta-label">Corridor Trajectory:</span>
+            </div>
+            <div id="interception-route-val" class="corridor-route-breadcrumb">
+              <span>CH Road Market Gate (cam04)</span> ➔ <span>Ring Road North Junction (cam14)</span> ➔ <span>Highway Toll Plaza (cam22)</span>
+            </div>
+            <div class="response-meta-row" style="margin-top: 6px;">
+              <span class="meta-label">Kinematic Speed:</span>
+              <span id="interception-speed-val" class="meta-val text-success">23.2 – 26.9 km/h (Feasible)</span>
+            </div>
+            <div class="response-meta-row">
+              <span class="meta-label">Tactical Action:</span>
+              <span id="interception-action-val" class="meta-val">Toll Barrier Closure &amp; Staging PCR Unit</span>
+            </div>
+            <div class="response-card-actions">
+              <button type="button" class="response-action-btn btn-interception" id="btn-traffic-stage" onclick="window.acknowledgeDispatch('traffic')">
+                🛑 Lock Checkpoint Staging
+              </button>
+              <button type="button" class="response-action-btn btn-secondary-action" onclick="window.viewCorridorOnMap()">
+                🗺️ View Corridor on Map
+              </button>
+            </div>
+          </div>
+        </article>
 
-          <label for="camera-source">Stream URL / RTSP / Local File</label>
-          <input id="camera-source" name="source" type="text" maxlength="2048"
-                 placeholder="rtsp://103.250.160.189:8554/stream/cam04" required>
-          <button type="submit">Add Camera</button>
-          <p id="camera-form-message" class="form-message" aria-live="polite"></p>
-        </form>
-      </section>
-    </aside>
+        <!-- Card 3: AMBULANCE DISPATCH (108 EMRI) -->
+        <article class="response-card card-ambulance" id="response-card-ambulance">
+          <div class="response-card-header">
+            <div class="response-card-title">
+              <span class="response-icon">🚑</span>
+              <strong>AMBULANCE / 108 EMRI</strong>
+            </div>
+            <span class="simulated-badge">DEMO CAD INTEGRATION</span>
+          </div>
+          <div class="response-card-body">
+            <div class="response-meta-row">
+              <span class="meta-label">Linked Incident:</span>
+              <span id="ambulance-incident-val" class="meta-val text-danger">SOS Distress (#105 - CH Road)</span>
+            </div>
+            <div class="response-meta-row">
+              <span class="meta-label">Nearest Unit:</span>
+              <span id="ambulance-unit-val" class="meta-val">108 EMRI Unit 04 (ALS)</span>
+            </div>
+            <div class="response-meta-row">
+              <span class="meta-label">Estimated ETA:</span>
+              <span id="ambulance-eta-val" class="meta-val text-success font-bold">4 mins <small class="text-muted">(1.8 km distance)</small></span>
+            </div>
+            <div class="response-meta-row">
+              <span class="meta-label">Receiving Facility:</span>
+              <span id="ambulance-facility-val" class="meta-val">Civil Hospital Gandhinagar Trauma</span>
+            </div>
+            <div class="response-meta-row">
+              <span class="meta-label">Dispatch State:</span>
+              <span id="ambulance-state-val" class="meta-val text-warning">DISPATCH RECOMMENDED</span>
+            </div>
+            <div class="response-sim-note">
+              <span>ℹ️ <em>Simulated API integration for GVK EMRI 108 CAD interface</em></span>
+            </div>
+            <div class="response-card-actions">
+              <button type="button" class="response-action-btn btn-ambulance" id="btn-amb-dispatch" onclick="window.acknowledgeDispatch('ambulance')">
+                🚑 Confirm 108 CAD Dispatch
+              </button>
+            </div>
+          </div>
+        </article>
 
-    <!-- Full Width: Vehicle Journey Tracker & Leaflet Map -->
+        <!-- Card 4: FIRE & RESCUE (101 FRS) -->
+        <article class="response-card card-fire" id="response-card-fire">
+          <div class="response-card-header">
+            <div class="response-card-title">
+              <span class="response-icon">🚒</span>
+              <strong>FIRE &amp; RESCUE / 101 FRS</strong>
+            </div>
+            <span class="simulated-badge">DEMO CAD INTEGRATION</span>
+          </div>
+          <div class="response-card-body">
+            <div class="response-meta-row">
+              <span class="meta-label">Sector Status:</span>
+              <span id="fire-incident-val" class="meta-val">Active Grid Monitoring (Sector 6 Chowki)</span>
+            </div>
+            <div class="response-meta-row">
+              <span class="meta-label">Assigned Station:</span>
+              <span id="fire-station-val" class="meta-val">Gandhinagar Central FRS (Sec 17)</span>
+            </div>
+            <div class="response-meta-row">
+              <span class="meta-label">Standby Tender:</span>
+              <span id="fire-tender-val" class="meta-val text-warning font-bold">Tender FRS-02 <small class="text-muted">(Water Bouser)</small></span>
+            </div>
+            <div class="response-meta-row">
+              <span class="meta-label">Hydrant Line:</span>
+              <span id="fire-hydrant-val" class="meta-val text-success">4.2 bar (Operational)</span>
+            </div>
+            <div class="response-meta-row">
+              <span class="meta-label">Dispatch State:</span>
+              <span id="fire-state-val" class="meta-val text-info">STANDBY PROTOCOL ACTIVE</span>
+            </div>
+            <div class="response-sim-note">
+              <span>ℹ️ <em>Simulated API integration for Gujarat Fire Services CAD</em></span>
+            </div>
+            <div class="response-card-actions">
+              <button type="button" class="response-action-btn btn-fire" id="btn-fire-stage" onclick="window.acknowledgeDispatch('fire')">
+                🚒 Stage Fire Tender CAD
+              </button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- ROW 3: VEHICLE JOURNEY RECONSTRUCTION & KINEMATIC FEASIBILITY (SECTION E) -->
     <section class="panel journey-panel" aria-labelledby="journey-heading">
       <div class="panel-heading">
         <div>
-          <p class="eyebrow">Gujarat Police Intelligence · Cross-Camera Journey</p>
-          <h2 id="journey-heading">Vehicle Journey Reconstruction & Track Feasibility</h2>
+          <p class="eyebrow">TEMPORAL-SPATIAL ANPR INTELLIGENCE</p>
+          <h2 id="journey-heading">Cross-Camera Vehicle Journey Reconstruction</h2>
         </div>
         <div id="journey-status-badge"></div>
       </div>
 
-      <form id="journey-search-form" style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 16px;">
-        <input id="journey-plate-input" type="text" placeholder="Enter Registration Number (e.g. GJ01AB1234, DL8CAF5091, TESTCASEA)" style="flex: 1; text-transform: uppercase; font-weight: bold; letter-spacing: 0.05em;" required>
-        <button type="submit" style="width: auto; padding: 0 24px; white-space: nowrap; background: #2563eb;">Track Vehicle Journey</button>
-      </form>
-
-      <div id="journey-summary" class="journey-summary" style="display:none; margin-bottom: 14px; padding: 12px 16px; background: #0f172a; border: 1px solid #1e293b; border-radius: 8px;"></div>
-
-      <div id="journey-map" style="height: 380px; width: 100%; border-radius: 8px; margin-bottom: 16px; background: #090e16; border: 1px solid var(--panel-border);"></div>
-
-      <div class="panel-heading" style="margin-top: 14px; margin-bottom: 10px;">
-        <h3 style="font-size: 15px; margin: 0; color: #94a3b8;">Chronological Sighting Timeline & Corridor Speed Validation</h3>
+      <div class="journey-controls-row">
+        <form id="journey-search-form" class="journey-search-form">
+          <input id="journey-plate-input" type="text" placeholder="Enter Registration Number (e.g. GJ01RQ6420, GJ01AB1234, DL8CAF5091)" required autocomplete="off">
+          <button type="submit" class="btn-primary">🔍 Track Vehicle</button>
+        </form>
+        <div class="quick-plate-chips">
+          <span class="chip-label">Quick Targets:</span>
+          <button type="button" class="plate-chip active-chip" onclick="window.trackPlate('GJ01RQ6420')">GJ01RQ6420 (Watchlist)</button>
+          <button type="button" class="plate-chip" onclick="window.trackPlate('GJ01AB1234')">GJ01AB1234</button>
+          <button type="button" class="plate-chip" onclick="window.trackPlate('DL8CAF5091')">DL8CAF5091</button>
+          <button type="button" class="plate-chip" onclick="window.trackPlate('MH02CD5678')">MH02CD5678</button>
+        </div>
       </div>
-      <div id="journey-timeline" class="journey-timeline" style="max-height: 280px; overflow-y: auto;">
-        <p class="empty-state">Enter a license plate above to view its cross-camera trajectory, speed checks, and map route.</p>
+
+      <div id="journey-summary" class="journey-summary-box"></div>
+
+      <div class="journey-results-split">
+        <div class="journey-timeline-wrap">
+          <h3 class="subheading">Chronological Sighting Timeline &amp; Speed Validation</h3>
+          <div id="journey-timeline" class="journey-timeline" aria-live="polite">
+            <p class="empty-state">Enter a license plate above to view its cross-camera trajectory, speed checks, and map route.</p>
+          </div>
+        </div>
       </div>
     </section>
+
+    <!-- ROW 4 LEFT: LIVE INCIDENT & WATCHLIST ALERTS FEED (SECTION F) -->
+    <section class="panel alerts-panel" aria-labelledby="alerts-heading">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">PERCEPTION &amp; ANPR INCIDENT STREAM</p>
+          <h2 id="alerts-heading">Live Incident &amp; Watchlist Alerts</h2>
+        </div>
+        <div class="refresh-meta">
+          <span id="alert-count-badge" class="counter-badge">106 Incidents</span>
+          <span id="last-refresh">Updated just now</span>
+        </div>
+      </div>
+
+      <!-- Severity Filter Tabs -->
+      <div class="filter-tabs-bar" id="alert-filter-tabs">
+        <button type="button" class="filter-tab active" data-filter="all">All (<span id="tab-cnt-all">106</span>)</button>
+        <button type="button" class="filter-tab filter-critical" data-filter="critical">Critical (<span id="tab-cnt-critical">15</span>)</button>
+        <button type="button" class="filter-tab filter-watchlist" data-filter="watchlist">Watchlist (<span id="tab-cnt-watchlist">1</span>)</button>
+        <button type="button" class="filter-tab" data-filter="sos">SOS / Distress</button>
+        <button type="button" class="filter-tab" data-filter="fall">Fall / Medical</button>
+        <button type="button" class="filter-tab" data-filter="fight">Fight / Violence</button>
+      </div>
+
+      <div id="alert-feed" class="alert-feed" aria-live="polite">
+        <p class="empty-state">Loading real incidents from SQLite database...</p>
+      </div>
+    </section>
+
+    <!-- ROW 4 RIGHT: SIDEBAR (SECTIONS G, H, I) -->
+    <aside class="sidebar">
+      <!-- SECTION G: SENTINEL CCTV CAMERAS GRID -->
+      <section class="panel cameras-panel" aria-labelledby="cameras-heading">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">SENTINEL CCTV INGESTION</p>
+            <h2 id="cameras-heading">Active Sentinel Cameras</h2>
+          </div>
+          <a href="/zone_editor.html" class="secondary-button btn-sm" style="text-decoration: none;">Draw Zones 📐</a>
+        </div>
+        <div id="camera-list" class="camera-list" aria-live="polite">
+          <p class="empty-state">Loading camera sources...</p>
+        </div>
+      </section>
+
+      <!-- SECTION H: FORENSIC VIDEO INGESTION & LIVE ANALYZER -->
+      <section class="panel forensic-panel" aria-labelledby="batch-analysis-heading">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">FORENSIC &amp; STREAM ANALYSIS</p>
+            <h2 id="batch-analysis-heading">Video Stream Ingestion</h2>
+          </div>
+        </div>
+
+        <div class="live-analyzer-card">
+          <div class="analyzer-content">
+            <h3 class="analyzer-title">📹 Sentinel Live Stream Analyzer</h3>
+            <p class="analyzer-desc">Inspect live RTSP stream with real-time pose estimation, fall detection, fight analysis &amp; zone overlays.</p>
+            <a href="/live_analysis.html" class="btn-analyzer">Open Live Stream Analyzer ➔</a>
+          </div>
+        </div>
+
+        <form id="upload-form" class="upload-form">
+          <label for="video-file">Analyze Video File (Background Forensic Mode)</label>
+          <input id="video-file" name="video" type="file" accept=".mp4,.avi,.mov,.mkv,.webm" required>
+          <button type="submit" class="btn-primary btn-block">⚡ Ingest &amp; Run AI Pipeline</button>
+          <p id="upload-form-message" class="form-message" aria-live="polite"></p>
+        </form>
+
+        <div id="batch-status" class="batch-status" aria-live="polite"></div>
+        <div id="batch-results" class="batch-results"></div>
+      </section>
+
+      <!-- SECTION I: SYSTEM ACTIVITY AUDIT LOG -->
+      <section class="panel activity-panel" aria-labelledby="activity-heading">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">AUDIT &amp; TELEMETRY</p>
+            <h2 id="activity-heading">Operational Activity Log</h2>
+          </div>
+        </div>
+        <div id="activity-log-feed" class="activity-log-feed">
+          <div class="log-entry"><span class="log-time">18:35:10</span> Sentinel Grid Ingestion Synchronized (9 Cameras)</div>
+          <div class="log-entry"><span class="log-time">18:35:12</span> ANPR Temporal Correlation Matrix active (40 Sightings)</div>
+          <div class="log-entry"><span class="log-time">18:35:15</span> Watchlist Match Confirmed: GJ01RQ6420 at cam04</div>
+        </div>
+      </section>
+    </aside>
   </main>
 
+  <!-- INCIDENT FOCUS MODE SLIDE-OVER DRAWER -->
+  <div id="incident-drawer-backdrop" class="drawer-backdrop"></div>
+  <aside id="incident-drawer" class="incident-drawer" aria-labelledby="drawer-incident-title" aria-hidden="true">
+    <div class="drawer-header">
+      <div>
+        <span class="eyebrow" id="drawer-eyebrow">INCIDENT INTELLIGENCE FOCUS</span>
+        <h2 id="drawer-incident-title" class="drawer-title">Incident #--</h2>
+      </div>
+      <button type="button" id="btn-close-drawer" class="btn-close-drawer" aria-label="Close Incident Detail Drawer">✕</button>
+    </div>
+
+    <div class="drawer-body" id="drawer-body-content">
+      <div class="drawer-loading">Loading incident intelligence...</div>
+    </div>
+  </aside>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
   <footer>
-    Gujarat Police Innovation Hackathon 2026 · AI Emergency Response & Vehicle Intelligence Grid · Real SQLite Database
+    <div class="footer-content">
+      <div>
+        <strong>Gujarat Police Innovation Hackathon 2026</strong> — AI Emergency Response &amp; Vehicle Intelligence Command Centre
+      </div>
+      <div>
+        Connected to Real SQLite Database (<code>emergency_ai.db</code>) • FastAPI Localhost Port 8000
+      </div>
+    </div>
   </footer>
+
   <script src="app.js"></script>
 </body>
 </html>

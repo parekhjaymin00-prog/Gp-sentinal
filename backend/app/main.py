@@ -23,6 +23,7 @@ from backend.app.routes.batch_stream import router as batch_stream_router
 from backend.app.routes.zones import router as zones_router
 from backend.app.routes.zone_analysis import router as zone_analysis_router
 from backend.app.routes.journey import router as journey_router
+from backend.app.routes.dashboard import router as dashboard_router
 from database.zone_store import ensure_zone_table
 
 
@@ -64,6 +65,7 @@ app.include_router(batch_stream_router)
 app.include_router(zones_router)
 app.include_router(zone_analysis_router)
 app.include_router(journey_router)
+app.include_router(dashboard_router)
 
 
 @app.get("/health", tags=["system"])
